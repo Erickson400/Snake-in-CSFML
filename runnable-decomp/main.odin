@@ -1,7 +1,8 @@
 package main
 
+import "core:c"
+import "core:c/libc"
 import "sfml"
-import "system"
 
 Direction :: enum int { UP, DOWN, LEFT, RIGHT }
 Tail :: struct { x, y: u8 }
@@ -10,7 +11,7 @@ image: ^sfml.sfImage
 texture: ^sfml.sfTexture
 sprite: ^sfml.sfSprite
 
-tick_modulo: u8
+tick_modulo: u8 = 10
 frame_counter: int
 paused: bool
 input_delay: bool // Incomplete
@@ -29,18 +30,18 @@ tails: [2500]Tail
 
 // Complete
 main :: proc() {
-    window := sfml.sfRenderWindow_create({700, 700, 0}, "Snake in CSFML, by Eric", .Default, sfml.sfContextSettingsNull())
+    window := sfml.sfRenderWindow_create({700, 700, 0}, "Snake in CSFML, by Eric", .Close | .Titlebar, nil)
     view := sfml.sfView_create()
     sfml.sfView_setCenter(view, {25, 25})
     sfml.sfView_setSize(view, {50, 50})
     sfml.sfRenderWindow_setFramerateLimit(window, 60)
     sfml.sfRenderWindow_setView(window, view)
-    sfml.sfRenderWindow_setKeyRepeatEnabled(window, false)
+    sfml.sfRenderWindow_setKeyRepeatEnabled(window, sfml.sfFalse)
     InitGame()
-    system.printf("Enjoy!")
-    for sfml.sfRenderWindow_isOpen(window) {
+	libc.printf("Enjoy!\n");
+    for sfml.sfRenderWindow_isOpen(window) == sfml.sfTrue {
         event: sfml.sfEvent
-        for sfml.sfRenderWindow_pollEvent(window, &event) {
+        for sfml.sfRenderWindow_pollEvent(window, &event) == sfml.sfTrue {
             HandleInput(event)
             if (event.type == sfml.sfEventType.sfEvtClosed) {
                 sfml.sfRenderWindow_close(window)
@@ -56,17 +57,15 @@ main :: proc() {
     sfml.sfRenderWindow_destroy(window)
 }
 
-// Complete
 InitGame :: proc() {
     image = sfml.sfImage_create(50, 50)
     texture = sfml.sfTexture_create(50, 50)
     sprite = sfml.sfSprite_create()
-    sfml.sfSprite_setTexture(sprite, texture)
-    system.srand(0xe0134fb)
+    sfml.sfSprite_setTexture(sprite, texture, sfml.sfFalse)
+    libc.srand(0xe0134fb)
     InitGameObjects()
 }
 
-// Complete
 InitGameObjects :: proc() {
     snake_position = {25, 25}
     snake_move_dir = .RIGHT
@@ -84,13 +83,11 @@ InitGameObjects :: proc() {
     ChangeFruitPosition(&fruit_b_position)
 }
 
-// Complete
 ChangeFruitPosition :: proc(fruit_position: ^[2]u8) {
-    fruit_position[0] = u8(system.rand() % 50)
-    fruit_position[1] = u8(system.rand() % 50)
+    fruit_position[0] = u8(libc.rand() % 50)
+    fruit_position[1] = u8(libc.rand() % 50)
 }
 
-// Complete
 HandleInput :: proc(event: sfml.sfEvent) {
     if event.type == sfml.sfEventType.sfEvtMouseButtonPressed \
     && event.mouseButton.button == sfml.sfMouseButton.sfMouseLeft {
@@ -152,7 +149,6 @@ HandleInput :: proc(event: sfml.sfEvent) {
     }
 }
 
-// Complete
 Update :: proc(window: ^sfml.sfRenderWindow) {
     if !paused {
         if frame_counter % int(tick_modulo) == 0 {
@@ -182,45 +178,44 @@ Update :: proc(window: ^sfml.sfRenderWindow) {
 
             input_delay = true
             MoveTailsForward()
-            system.srand()
+            // libc.srand() ---argument not provided---
             CheckCollisionWithTail()
             CheckFruitCollision(&fruit_a_position)
             CheckFruitCollision(&fruit_b_position)
         }
 
         frame_counter += 1
-
+        
         // Clear background
-        for y in int(0)..<50 {
-            for x in int(0)..<50 {
+        for y in c.uint(0)..<50 {
+            for x in c.uint(0)..<50 {
                 sfml.sfImage_setPixel(image, x, y, {30, 30, 30, 255})
             }
         }
 
         // Draw snake head
         dark_green := sfml.sfColor{0, 100, 0, 255}
-        sfml.sfImage_setPixel(image, int(snake_position[0]), int(snake_position[1]), dark_green)
+        sfml.sfImage_setPixel(image, c.uint(snake_position[0]), c.uint(snake_position[1]), dark_green)
         
         // Draw tails
         green := sfml.sfColor{0, 255, 0, 255}
         for i in 0..<snake_length {
             if i != 0 {
-                sfml.sfImage_setPixel(image, int(tails[i].x), int(tails[i].y), green)
+                sfml.sfImage_setPixel(image, c.uint(tails[i].x), c.uint(tails[i].y), green)
             }
         }
 
         // Draw fruit A and B
         red := sfml.sfColor{255, 0, 0, 255}
-        sfml.sfImage_setPixel(image, int(fruit_a_position[0]), int(fruit_a_position[1]), red)
-        sfml.sfImage_setPixel(image, int(fruit_b_position[0]), int(fruit_b_position[1]), red)
+        sfml.sfImage_setPixel(image, c.uint(fruit_a_position[0]), c.uint(fruit_a_position[1]), red)
+        sfml.sfImage_setPixel(image, c.uint(fruit_b_position[0]), c.uint(fruit_b_position[1]), red)
 
         // Update Texture. Then render sprite to window
-        sfml.sfTexture_updateFromImage(texture, image)
+        sfml.sfTexture_updateFromImage(texture, image, 0, 0)
         sfml.sfRenderWindow_drawSprite(window, sprite, nil)
     }
 }
 
-// Complete
 CheckFruitCollision :: proc(fruit_position: ^[2]u8) {
     for i in 0..<snake_length {
         if (tails[i].x == fruit_position[0]) \
@@ -231,7 +226,6 @@ CheckFruitCollision :: proc(fruit_position: ^[2]u8) {
     }
 }
 
-// Complete
 AddTail :: proc() {
     if snake_length < 2500 {
         tails[snake_length] = tails[snake_length - 1]
@@ -239,23 +233,29 @@ AddTail :: proc() {
     }
 }
 
-// Complete
 CheckCollisionWithTail :: proc() {
-    i := 1
-    for {
-        if int(snake_length) <= i {
-            return
-        }
+    for i in 1..<snake_length {
         if (tails[i].x == snake_position[0]) \
         && (tails[i].y == snake_position[1]) {
-            break
+            InitGameObjects()
+            return
         }
-        i += 1
     }
-    InitGameObjects()
+
+    // i := 1
+    // for {
+    //     if int(snake_length) <= i {
+    //         return
+    //     }
+    //     if (tails[i].x == snake_position[0]) \
+    //     && (tails[i].y == snake_position[1]) {
+    //         break
+    //     }
+    //     i += 1
+    // }
+    // InitGameObjects()
 }
 
-// Complete
 MoveTailsForward :: proc() {
     for i in 0..<snake_length {
         tail_index := snake_length - i - 1
@@ -267,7 +267,6 @@ MoveTailsForward :: proc() {
     }
 }
 
-// Complete
 DestroyGame :: proc() {
     sfml.sfTexture_destroy(texture)
     sfml.sfSprite_destroy(sprite)
